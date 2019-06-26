@@ -3,11 +3,13 @@ package com.smartlock.android;
 import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.pm.PackageManager;
+import android.location.Geocoder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.CardView;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -21,6 +23,7 @@ import com.baidu.location.BDLocation;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
+import com.baidu.mapapi.com.baidu.mapapi.ovelayutil.DrivingRouteOverlay;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.BitmapDescriptor;
 import com.baidu.mapapi.map.BitmapDescriptorFactory;
@@ -28,10 +31,30 @@ import com.baidu.mapapi.map.InfoWindow;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.Marker;
 import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
+import com.baidu.mapapi.map.offline.MKOLSearchRecord;
 import com.baidu.mapapi.model.LatLng;
+import com.baidu.mapapi.model.inner.GeoPoint;
+import com.baidu.mapapi.search.core.SearchResult;
+import com.baidu.mapapi.search.geocode.GeoCodeResult;
+import com.baidu.mapapi.search.geocode.GeoCoder;
+import com.baidu.mapapi.search.geocode.OnGetGeoCoderResultListener;
+import com.baidu.mapapi.search.geocode.ReverseGeoCodeOption;
+import com.baidu.mapapi.search.geocode.ReverseGeoCodeResult;
+import com.baidu.mapapi.search.route.BikingRouteResult;
+import com.baidu.mapapi.search.route.DrivingRoutePlanOption;
+import com.baidu.mapapi.search.route.DrivingRouteResult;
+import com.baidu.mapapi.search.route.IndoorRouteResult;
+import com.baidu.mapapi.search.route.MassTransitRouteResult;
+import com.baidu.mapapi.search.route.OnGetRoutePlanResultListener;
+import com.baidu.mapapi.search.route.PlanNode;
+import com.baidu.mapapi.search.route.RoutePlanSearch;
+import com.baidu.mapapi.search.route.TransitRouteResult;
+import com.baidu.mapapi.search.route.WalkingRouteResult;
+import com.baidu.mapapi.utils.DistanceUtil;
 import com.bigkoo.pickerview.builder.OptionsPickerBuilder;
 import com.bigkoo.pickerview.listener.OnOptionsSelectListener;
 import com.bigkoo.pickerview.view.OptionsPickerView;
@@ -59,14 +82,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private MapView mMapView = null;
     private BaiduMap mBaiduMap;
     MapStatusUpdate update;
+    private GeoCoder geoCoderSearch;
+    private RoutePlanSearch routePlanSearch;
 
     private Button startTimeBtn;
     private Button stopTimeBtn;
     private ProgressDialog progressDialog;
+    private TextView lockInfo;
+    private CardView cardView;
 
-    private double latitude;
-    private double longitude;
     private boolean isFisrtLocate = true;
+
+    private LatLng localPoint;
+    private LatLng lockPoint;
 
     private Date date;
 
@@ -90,12 +118,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         //在使用SDK各组件之前初始化context信息，传入ApplicationContext
         SDKInitializer.initialize(getApplicationContext());
-
+        //初始化控件
         setContentView(R.layout.activity_main);
         startTimeBtn = findViewById(R.id.btn_changeStartTime);
         stopTimeBtn = findViewById(R.id.btn_changeStopTime);
         date = new Date(System.currentTimeMillis());
         startTimeBtn.setText("今天 " + TimeUtil.getCurrentTime(date) + " (现在)");
+        cardView = findViewById(R.id.cardview);
+        lockInfo = findViewById(R.id.tv_lockinfo);
 
         //设置点击事件
         startTimeBtn.setOnClickListener(this);
@@ -112,6 +142,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //调整地图显示比例尺
         update = MapStatusUpdateFactory.zoomTo(19f);
         mBaiduMap.animateMapStatus(update);
+
+        //设置地图标志点上的点击事件
+        mBaiduMap.setOnMarkerClickListener(new BaiduMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                lockPoint = marker.getPosition();
+
+                //获取地址
+                geoCoderSearch = GeoCoder.newInstance();
+                geoCoderSearch.setOnGetGeoCodeResultListener(geoCoderResultListener);
+                geoCoderSearch.reverseGeoCode(new ReverseGeoCodeOption().location(lockPoint).radius(500));
+
+                //规划线路
+                routePlanSearch = RoutePlanSearch.newInstance();
+                routePlanSearch.setOnGetRoutePlanResultListener(routePlanResultListener);
+                PlanNode stNode = PlanNode.withLocation(localPoint);
+                PlanNode enNode = PlanNode.withLocation(lockPoint);
+                routePlanSearch.drivingSearch(new DrivingRoutePlanOption().from(stNode).to(enNode));
+
+                return true;
+            }
+        });
 
         //申请权限
         List<String> permissionList = new ArrayList<>();
@@ -168,30 +220,108 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return;
             }
 
+            //获取纬度信息
+            double latitude = location.getLatitude();
+            //获取经度信息
+            double longitude = location.getLongitude();
+            //赋值点信息
+            localPoint = new LatLng(latitude,longitude);
+
             MyLocationData locData = new MyLocationData.Builder()
                     .accuracy(location.getRadius())
                     // 此处设置开发者获取到的方向信息，顺时针0-360
                     .direction(location.getDirection())
-                    .latitude(location.getLatitude())
-                    .longitude(location.getLongitude())
+                    .latitude(latitude)
+                    .longitude(longitude)
                     .build();
             mBaiduMap.setMyLocationData(locData);
 
-            //获取纬度信息
-            latitude = location.getLatitude();
-            //获取经度信息
-            longitude = location.getLongitude();
-
             if (isFisrtLocate){
                 //更新地图
-                LatLng ll = new LatLng(latitude,longitude);
-                update = MapStatusUpdateFactory.newLatLng(ll);
+                update = MapStatusUpdateFactory.newLatLng(localPoint);
                 mBaiduMap.animateMapStatus(update);
 
                 isFisrtLocate = false;
             }
         }
     }
+
+    //创建逆地理编码检索监听器
+    OnGetGeoCoderResultListener geoCoderResultListener = new OnGetGeoCoderResultListener() {
+
+        @Override
+        public void onGetGeoCodeResult(GeoCodeResult geoCodeResult) {
+
+        }
+
+        @Override
+        public void onGetReverseGeoCodeResult(ReverseGeoCodeResult reverseGeoCodeResult) {
+            if (reverseGeoCodeResult == null || reverseGeoCodeResult.error != SearchResult.ERRORNO.NO_ERROR) {
+                //没有找到检索结果
+                return;
+            } else {
+                String distance_string;
+                //详细地址
+                lockInfo.setText(reverseGeoCodeResult.getAddress() + "\n");
+
+                //获取距离
+                double distance = DistanceUtil.getDistance(localPoint,lockPoint);
+                if (distance >= 1000){
+                    distance_string = String.format("%.2f",distance / 1000);//保存小数点后2位
+                    lockInfo.append("距离：" + distance_string + "KM");
+                }else {
+                    distance_string = String.valueOf((int) distance);
+                    lockInfo.append("距离：" + distance_string + "M");
+                }
+            }
+        }
+    };
+
+    //创建线路规划检索结果监听器
+    OnGetRoutePlanResultListener routePlanResultListener = new OnGetRoutePlanResultListener() {
+
+        private DrivingRouteOverlay overlay;
+
+        @Override
+        public void onGetWalkingRouteResult(WalkingRouteResult walkingRouteResult) {
+
+        }
+
+        @Override
+        public void onGetTransitRouteResult(TransitRouteResult transitRouteResult) {
+
+        }
+
+        @Override
+        public void onGetMassTransitRouteResult(MassTransitRouteResult massTransitRouteResult) {
+
+        }
+
+        @Override
+        public void onGetDrivingRouteResult(DrivingRouteResult drivingRouteResult) {
+            if (overlay != null) {
+                overlay.removeFromMap();
+            }
+            overlay = new DrivingRouteOverlay(mBaiduMap);
+            if (drivingRouteResult.getRouteLines().size() > 0) {
+                //获取路径规划数据,(以返回的第一条路线为例）
+                //为DrivingRouteOverlay实例设置数据
+                overlay.setData(drivingRouteResult.getRouteLines().get(0));
+                //在地图上绘制DrivingRouteOverlay
+                overlay.addToMap();
+            }
+        }
+
+        @Override
+        public void onGetIndoorRouteResult(IndoorRouteResult indoorRouteResult) {
+
+        }
+
+        @Override
+        public void onGetBikingRouteResult(BikingRouteResult bikingRouteResult) {
+
+        }
+    };
 
     @Override
     public void onClick(View view) {
@@ -236,8 +366,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.fab:
                 //更新地图
-                LatLng ll = new LatLng(latitude,longitude);
-                update = MapStatusUpdateFactory.newLatLng(ll);
+                update = MapStatusUpdateFactory.newLatLng(localPoint);
                 mBaiduMap.animateMapStatus(update);
                 update = MapStatusUpdateFactory.zoomTo(19f);//调整地图显示比例尺
                 mBaiduMap.animateMapStatus(update);
@@ -247,23 +376,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void setMarker(List<OverlayOptions> optionsList){
+    private void setMarker(){
         //清除地图上的所有覆盖物
         mBaiduMap.clear();
 
         //在地图上批量添加
         mBaiduMap.addOverlays(options);
-
-        //用来构造InfoWindow的TextView
-        //TextView textView = new TextView(getApplicationContext());
-        //textView.setText(String.valueOf(number));
-        //textView.setTextSize(15);
-
-        //构造InfoWindow
-        //InfoWindow mInfoWindow = new InfoWindow(textView,point,-30);
-        //使InfoWindow生效
-        //mBaiduMap.showInfoWindow(mInfoWindow);
-
     }
 
     private void initDataTimeList(boolean isStartTime) {
@@ -345,6 +463,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         String address = "http://192.168.1.104:8080/JavaWorkspace_war/FindLockController/findLockByTime?startTime=" + first_date_string + first_time_string + ":00&stopTime=" + second_date_string + second_time_string + ":00";
+        //String address = "http://47.101.35.145:8080/JavaWorkspace_war/FindLockController/findLockByTime?startTime=" + first_date_string + first_time_string + ":00&stopTime=" + second_date_string + second_time_string + ":00";
+
         HttpUtil.sendOkHttpRequest(address, new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -363,7 +483,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 String responseText = response.body().string();
                 if (!TextUtils.isEmpty(responseText)){
                     options = HttpUtil.parseJSONWithJSONObject(responseText);
-                    setMarker(options);
+                    setMarker();
                 }
                 closeProgressDialog();
             }
@@ -425,5 +545,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mLocationClient.stop();
         mBaiduMap.setMyLocationEnabled(false);
         mMapView.onDestroy();
+        geoCoderSearch.destroy();
+        routePlanSearch.destroy();
     }
 }

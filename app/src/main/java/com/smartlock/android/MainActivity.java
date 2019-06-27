@@ -14,6 +14,8 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -58,6 +60,7 @@ import com.baidu.mapapi.utils.DistanceUtil;
 import com.bigkoo.pickerview.builder.OptionsPickerBuilder;
 import com.bigkoo.pickerview.listener.OnOptionsSelectListener;
 import com.bigkoo.pickerview.view.OptionsPickerView;
+import com.smartlock.android.com.smartlock.android.util.AnimUtil;
 import com.smartlock.android.com.smartlock.android.util.HttpUtil;
 import com.smartlock.android.com.smartlock.android.util.TimeUtil;
 
@@ -96,6 +99,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private LatLng localPoint;
     private LatLng lockPoint;
 
+    public static DrivingRouteOverlay overlay;
+
     private Date date;
 
     List<String> DateList = new ArrayList<>();
@@ -131,6 +136,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startTimeBtn.setOnClickListener(this);
         stopTimeBtn.setOnClickListener(this);
         findViewById(R.id.fab).setOnClickListener(this);
+        findViewById(R.id.btn_navigation).setOnClickListener(this);
+        findViewById(R.id.btn_openlight).setOnClickListener(this);
+        findViewById(R.id.btn_book).setOnClickListener(this);
 
         //获取地图控件引用
         mMapView = findViewById(R.id.bmapView);
@@ -160,6 +168,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 PlanNode stNode = PlanNode.withLocation(localPoint);
                 PlanNode enNode = PlanNode.withLocation(lockPoint);
                 routePlanSearch.drivingSearch(new DrivingRoutePlanOption().from(stNode).to(enNode));
+
+                showLockInfoWithAnim();
 
                 return true;
             }
@@ -280,8 +290,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     //创建线路规划检索结果监听器
     OnGetRoutePlanResultListener routePlanResultListener = new OnGetRoutePlanResultListener() {
 
-        private DrivingRouteOverlay overlay;
-
         @Override
         public void onGetWalkingRouteResult(WalkingRouteResult walkingRouteResult) {
 
@@ -346,6 +354,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.btn_changeStopTime:
                 initDataTimeList(false);
+                cardView.setVisibility(View.GONE);
 
                 OptionsPickerView pvOptions_stopTime = new OptionsPickerBuilder(this, new OnOptionsSelectListener() {
                     @Override
@@ -356,7 +365,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         stopTimeBtn.setText(tx);
 
                         queryFromServer();
-
                     }
                 })
                         .setDecorView((ViewGroup) getWindow().getDecorView().findViewById(android.R.id.content))
@@ -370,6 +378,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 mBaiduMap.animateMapStatus(update);
                 update = MapStatusUpdateFactory.zoomTo(19f);//调整地图显示比例尺
                 mBaiduMap.animateMapStatus(update);
+                break;
+            case R.id.btn_navigation:
+                Toast.makeText(MainActivity.this,"导航",Toast.LENGTH_SHORT).show();
+                break;
+            case R.id.btn_openlight:
+                Toast.makeText(MainActivity.this,"开灯",Toast.LENGTH_SHORT).show();
+                break;
+            case R.id.btn_book:
+                Toast.makeText(MainActivity.this,"预订",Toast.LENGTH_SHORT).show();
                 break;
             default:
                 break;
@@ -505,6 +522,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    private void showLockInfoWithAnim() {
+        cardView.setVisibility(View.VISIBLE);
+        Animation animation = AnimUtil.getAnimation(this,AnimUtil.SLIDE_IN_BOTTOM);
+        cardView.startAnimation(animation);
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         switch (requestCode){
@@ -542,10 +565,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        mLocationClient.stop();
-        mBaiduMap.setMyLocationEnabled(false);
-        mMapView.onDestroy();
-        geoCoderSearch.destroy();
-        routePlanSearch.destroy();
+        if (mLocationClient != null) {
+            mLocationClient.stop();
+        }
+        if (mBaiduMap != null) {
+            mBaiduMap.setMyLocationEnabled(false);
+        }
+        if (mMapView != null){
+            mMapView.onDestroy();
+        }
+        if (geoCoderSearch != null){
+            geoCoderSearch.destroy();
+        }
+        if (routePlanSearch != null){
+            routePlanSearch.destroy();
+        }
     }
 }

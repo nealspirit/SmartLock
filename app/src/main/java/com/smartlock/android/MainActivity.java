@@ -2,20 +2,24 @@ package com.smartlock.android;
 
 import android.Manifest;
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.location.Geocoder;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
+import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.CardView;
 import android.text.TextUtils;
-import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,19 +31,13 @@ import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.com.baidu.mapapi.ovelayutil.DrivingRouteOverlay;
 import com.baidu.mapapi.map.BaiduMap;
-import com.baidu.mapapi.map.BitmapDescriptor;
-import com.baidu.mapapi.map.BitmapDescriptorFactory;
-import com.baidu.mapapi.map.InfoWindow;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.map.Marker;
-import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
-import com.baidu.mapapi.map.offline.MKOLSearchRecord;
 import com.baidu.mapapi.model.LatLng;
-import com.baidu.mapapi.model.inner.GeoPoint;
 import com.baidu.mapapi.search.core.SearchResult;
 import com.baidu.mapapi.search.geocode.GeoCodeResult;
 import com.baidu.mapapi.search.geocode.GeoCoder;
@@ -64,27 +62,21 @@ import com.smartlock.android.com.smartlock.android.util.AnimUtil;
 import com.smartlock.android.com.smartlock.android.util.HttpUtil;
 import com.smartlock.android.com.smartlock.android.util.TimeUtil;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import okhttp3.Response;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, NavigationView.OnNavigationItemSelectedListener {
     public LocationClient mLocationClient = null;
     private MyLocationListener myListener = new MyLocationListener();
     private MapView mMapView = null;
     private BaiduMap mBaiduMap;
-    MapStatusUpdate update;
+    private MapStatusUpdate update;
     private GeoCoder geoCoderSearch;
     private RoutePlanSearch routePlanSearch;
 
@@ -93,6 +85,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ProgressDialog progressDialog;
     private TextView lockInfo;
     private CardView cardView;
+    private DrawerLayout drawerLayout;
+    private NavigationView navigationView;
+    private TextView nav_header_username;
 
     private boolean isFisrtLocate = true;
 
@@ -114,6 +109,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private String startTime = null;
 
+    public static String ServerIP = "http://192.168.1.106:8080";//阿里云IP:http://47.101.35.145:8080
+    private String username;
+    private String password;
+
+    private SharedPreferences pref;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -131,6 +132,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startTimeBtn.setText("今天 " + TimeUtil.getCurrentTime(date) + " (现在)");
         cardView = findViewById(R.id.cardview);
         lockInfo = findViewById(R.id.tv_lockinfo);
+        drawerLayout = findViewById(R.id.drawerlayout);
+        navigationView = findViewById(R.id.user_info);
+        nav_header_username = navigationView.getHeaderView(0).findViewById(R.id.username);
+        pref = PreferenceManager.getDefaultSharedPreferences(this);
 
         //设置点击事件
         startTimeBtn.setOnClickListener(this);
@@ -139,6 +144,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         findViewById(R.id.btn_navigation).setOnClickListener(this);
         findViewById(R.id.btn_openlight).setOnClickListener(this);
         findViewById(R.id.btn_book).setOnClickListener(this);
+        navigationView.setNavigationItemSelectedListener(this);
+        findViewById(R.id.nav_button).setOnClickListener(this);
+        nav_header_username.setOnClickListener(this);
 
         //获取地图控件引用
         mMapView = findViewById(R.id.bmapView);
@@ -331,6 +339,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     };
 
+    //设置按钮点击事件
     @Override
     public void onClick(View view) {
         switch (view.getId()){
@@ -364,7 +373,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 + TimeLists.get(options1).get(option2);
                         stopTimeBtn.setText(tx);
 
-                        queryFromServer();
+                        queryFromServerToLockAddress();
                     }
                 })
                         .setDecorView((ViewGroup) getWindow().getDecorView().findViewById(android.R.id.content))
@@ -388,9 +397,52 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.btn_book:
                 Toast.makeText(MainActivity.this,"预订",Toast.LENGTH_SHORT).show();
                 break;
+            case R.id.nav_button:
+                drawerLayout.openDrawer(GravityCompat.START);
+                break;
+            case R.id.username:
+                Intent intent = new Intent(MainActivity.this,LoginActivity.class);
+                startActivity(intent);
+                break;
             default:
                 break;
         }
+    }
+
+    //设置菜单点击事件
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+        if (username != null) {
+            int Flag;
+            Intent intent = new Intent(MainActivity.this,InfoActivity.class);
+
+            switch (menuItem.getItemId()){
+                case R.id.info:
+                    Flag = 0;
+
+                    break;
+                case R.id.car:
+                    Toast.makeText(MainActivity.this,menuItem.getTitle(),Toast.LENGTH_SHORT).show();
+                    break;
+                case R.id.bookingLock:
+                    Toast.makeText(MainActivity.this,menuItem.getTitle(),Toast.LENGTH_SHORT).show();
+                    break;
+                case R.id.myLock:
+                    Toast.makeText(MainActivity.this,menuItem.getTitle(),Toast.LENGTH_SHORT).show();
+                    break;
+                case R.id.setting:
+                    Toast.makeText(MainActivity.this,menuItem.getTitle(),Toast.LENGTH_SHORT).show();
+                    break;
+                default:
+                    break;
+            }
+        }else {
+            Intent intent = new Intent(MainActivity.this,LoginActivity.class);
+
+        }
+
+        drawerLayout.closeDrawers();
+        return true;
     }
 
     private void setMarker(){
@@ -457,7 +509,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         TimeLists.add(TomorrowTimeList);
     }
 
-    private void queryFromServer() {
+    //给服务器发送地址请求，获取使用使用时间内的车锁信息
+    private void queryFromServerToLockAddress() {
         showProgressDialog();
 
         String first_date_string = startTimeBtn.getText().toString().split(" ")[0];
@@ -479,8 +532,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             second_date_string = "C:";
         }
 
-        String address = "http://192.168.1.104:8080/JavaWorkspace_war/FindLockController/findLockByTime?startTime=" + first_date_string + first_time_string + ":00&stopTime=" + second_date_string + second_time_string + ":00";
-        //String address = "http://47.101.35.145:8080/JavaWorkspace_war/FindLockController/findLockByTime?startTime=" + first_date_string + first_time_string + ":00&stopTime=" + second_date_string + second_time_string + ":00";
+        String address = ServerIP + "/JavaWorkspace_war/FindLockController/findLockByTime?startTime=" + first_date_string + first_time_string + ":00&stopTime=" + second_date_string + second_time_string + ":00";
 
         HttpUtil.sendOkHttpRequest(address, new Callback() {
             @Override
@@ -499,27 +551,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             public void onResponse(Call call, Response response) throws IOException {
                 String responseText = response.body().string();
                 if (!TextUtils.isEmpty(responseText)){
-                    options = HttpUtil.parseJSONWithJSONObject(responseText);
+                    options = HttpUtil.parseJSONWithJSONObjectTolockAddress(responseText);
                     setMarker();
                 }
                 closeProgressDialog();
             }
         });
-    }
-
-    private void showProgressDialog() {
-        if (progressDialog == null){
-            progressDialog = new ProgressDialog(this);
-            progressDialog.setMessage("正在加载中...");
-            progressDialog.setCanceledOnTouchOutside(false);
-        }
-        progressDialog.show();
-    }
-
-    private void closeProgressDialog(){
-        if (progressDialog != null){
-            progressDialog.dismiss();
-        }
     }
 
     private void showLockInfoWithAnim() {
@@ -547,6 +584,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 break;
             default:
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        username = pref.getString("username","");
+        password = pref.getString("password","");
+        if (!TextUtils.isEmpty(username)){
+            nav_header_username.setText(username);
+        }else {
+            nav_header_username.setText("未登录");
         }
     }
 
@@ -579,6 +628,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         if (routePlanSearch != null){
             routePlanSearch.destroy();
+        }
+    }
+
+    private void showProgressDialog() {
+        if (progressDialog == null){
+            progressDialog = new ProgressDialog(this);
+            progressDialog.setMessage("正在加载中...");
+            progressDialog.setCanceledOnTouchOutside(false);
+        }
+        progressDialog.show();
+    }
+
+    private void closeProgressDialog(){
+        if (progressDialog != null){
+            progressDialog.dismiss();
         }
     }
 }

@@ -8,6 +8,7 @@ import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
 import com.smartlock.android.R;
+import com.smartlock.android.domain.UserInfo;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -26,7 +27,7 @@ public class HttpUtil {
         client.newCall(request).enqueue(callback);
     }
 
-    public static List<OverlayOptions> parseJSONWithJSONObject(String jsonData) {
+    public static List<OverlayOptions> parseJSONWithJSONObjectTolockAddress(String jsonData) {
         List<OverlayOptions> options = new ArrayList<OverlayOptions>();
 
         try{
@@ -55,5 +56,24 @@ public class HttpUtil {
         }
 
         return options;
+    }
+
+    public static UserInfo parseJSONWithJSONObjectToUserInfo(String jsonData){
+        UserInfo user = new UserInfo();
+
+        try{
+            JSONArray jsonArray = new JSONArray(jsonData);
+            for (int i = 0; i < jsonArray.length(); i++){
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                user.setUserName(jsonObject.getString("name"));
+                user.setPhoneNumber(jsonObject.getString("phone"));
+                user.setIdentity(jsonObject.getString("identity"));
+                user.setAddress(jsonObject.getString("address"));
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return user;
     }
 }

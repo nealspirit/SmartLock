@@ -7,11 +7,13 @@ import android.support.v7.widget.CardView;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.animation.Animation;
+import android.view.animation.TranslateAnimation;
 
 import com.smartlock.android.com.smartlock.android.util.AnimUtil;
 
 public class LockInfoView extends CardView {
-    private int mLastYIntercept;
+    private boolean CARDVIEW_MODE_FLAG = false;
+    private float lastY;
 
     public LockInfoView(@NonNull Context context) {
         super(context);
@@ -26,45 +28,36 @@ public class LockInfoView extends CardView {
     }
 
     @Override
-    public boolean onInterceptTouchEvent(MotionEvent ev) {
-        boolean intercepted = false;
-        int y = (int) ev.getY();
+    public boolean onTouchEvent(MotionEvent event) {
+        TranslateAnimation translateAnimation;
+        float Y = event.getY();
 
-        switch (ev.getAction()){
+        switch (event.getAction()){
             case MotionEvent.ACTION_DOWN:
-                intercepted = false;
                 break;
             case MotionEvent.ACTION_MOVE:
-                if (y < mLastYIntercept){
-                    intercepted = true;
+                if (Y > lastY){
+                    CARDVIEW_MODE_FLAG = true;
                 }else {
-                    intercepted = false;
+                    CARDVIEW_MODE_FLAG = false;
                 }
+
                 break;
             case MotionEvent.ACTION_UP:
-                intercepted = false;
+                if (CARDVIEW_MODE_FLAG){
+                    Animation animation = AnimUtil.getAnimation(getContext(),AnimUtil.SLIDE_OUT_BOTTOM);
+                    this.startAnimation(animation);
+                    this.setVisibility(GONE);
+
+                    if (MainActivity.overlay != null) {
+                        MainActivity.overlay.removeFromMap();
+                    }
+                }
                 break;
             default:
                 break;
         }
-        mLastYIntercept = y;
-
-        return intercepted;
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        switch (event.getAction()){
-            case MotionEvent.ACTION_UP:
-                Animation animation = AnimUtil.getAnimation(getContext(),AnimUtil.SLIDE_OUT_BOTTOM);
-                this.startAnimation(animation);
-                this.setVisibility(GONE);
-
-                if (MainActivity.overlay != null) {
-                    MainActivity.overlay.removeFromMap();
-                }
-                break;
-        }
+        lastY = Y;
 
         return true;
     }

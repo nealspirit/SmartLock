@@ -50,7 +50,8 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"/>
+            android:layout_gravity="center_vertical"
+            android:inputType="textPassword"/>
     </LinearLayout>
 
     <Button
@@ -59,22 +60,27 @@
         android:layout_height="wrap_content"
         android:text="登陆"/>
 
-    <TextView
-        android:id="@+id/btn_signin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="right"
-        android:layout_marginRight="10dp"
-        android:layout_marginTop="10dp"
-        android:text="没有账号？"/>
-
-    <TextView
-        android:id="@+id/wrong_message"
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="用户名密码错误!"
-        android:textColor="#FF0000"
-        android:gravity="center"
-        android:visibility="gone"/>
+        android:layout_margin="10dp">
+
+        <TextView
+            android:id="@+id/wrong_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="用户名密码错误!"
+            android:textColor="#FF0000"
+            android:layout_centerInParent="true"
+            android:visibility="gone"/>
+
+        <TextView
+            android:id="@+id/btn_register"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:text="没有账号？"/>
+
+    </RelativeLayout>
 
 </LinearLayout>

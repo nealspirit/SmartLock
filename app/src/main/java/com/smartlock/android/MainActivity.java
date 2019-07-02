@@ -114,6 +114,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String password;
 
     private SharedPreferences pref;
+    private SharedPreferences.Editor editor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -136,6 +137,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         navigationView = findViewById(R.id.user_info);
         nav_header_username = navigationView.getHeaderView(0).findViewById(R.id.username);
         pref = PreferenceManager.getDefaultSharedPreferences(this);
+        editor = pref.edit();
 
         //设置点击事件
         startTimeBtn.setOnClickListener(this);
@@ -401,8 +403,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 drawerLayout.openDrawer(GravityCompat.START);
                 break;
             case R.id.username:
-                Intent intent = new Intent(MainActivity.this,LoginActivity.class);
-                startActivity(intent);
+                if (!TextUtils.isEmpty(username)){
+                    Intent intent = new Intent(MainActivity.this,InfoActivity.class);
+                    intent.putExtra("flag","个人信息");
+                    startActivity(intent);
+                }else {
+                    Intent intent = new Intent(MainActivity.this,LoginActivity.class);
+                    startActivity(intent);
+                }
                 break;
             default:
                 break;
@@ -412,33 +420,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     //设置菜单点击事件
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
-        if (username != null) {
-            int Flag;
+        if (!TextUtils.isEmpty(username)) {
             Intent intent = new Intent(MainActivity.this,InfoActivity.class);
 
             switch (menuItem.getItemId()){
-                case R.id.info:
-                    Flag = 0;
-
-                    break;
                 case R.id.car:
-                    Toast.makeText(MainActivity.this,menuItem.getTitle(),Toast.LENGTH_SHORT).show();
+                    intent.putExtra("flag","我的车辆");
                     break;
                 case R.id.bookingLock:
-                    Toast.makeText(MainActivity.this,menuItem.getTitle(),Toast.LENGTH_SHORT).show();
+                    intent.putExtra("flag","已预订车位");
                     break;
                 case R.id.myLock:
-                    Toast.makeText(MainActivity.this,menuItem.getTitle(),Toast.LENGTH_SHORT).show();
-                    break;
-                case R.id.setting:
-                    Toast.makeText(MainActivity.this,menuItem.getTitle(),Toast.LENGTH_SHORT).show();
+                    intent.putExtra("flag","我的车锁");
                     break;
                 default:
                     break;
             }
+            Toast.makeText(MainActivity.this,"未完成的功能",Toast.LENGTH_SHORT).show();
+
+            startActivity(intent);
         }else {
             Intent intent = new Intent(MainActivity.this,LoginActivity.class);
-
+            startActivity(intent);
         }
 
         drawerLayout.closeDrawers();

@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
 
 public class RegisterActivity extends AppCompatActivity {
+    private String address = MainActivity.ServerIP + "/JavaWorkspace_war/UserController/insertUser?name=**&phone=**&identity=**&address=**";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

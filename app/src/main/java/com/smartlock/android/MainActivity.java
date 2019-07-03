@@ -31,10 +31,13 @@ import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.com.baidu.mapapi.ovelayutil.DrivingRouteOverlay;
 import com.baidu.mapapi.map.BaiduMap;
+import com.baidu.mapapi.map.BitmapDescriptor;
+import com.baidu.mapapi.map.BitmapDescriptorFactory;
 import com.baidu.mapapi.map.MapStatusUpdate;
 import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.map.Marker;
+import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
@@ -60,7 +63,9 @@ import com.bigkoo.pickerview.listener.OnOptionsSelectListener;
 import com.bigkoo.pickerview.view.OptionsPickerView;
 import com.smartlock.android.com.smartlock.android.util.AnimUtil;
 import com.smartlock.android.com.smartlock.android.util.HttpUtil;
+import com.smartlock.android.com.smartlock.android.util.LockUtil;
 import com.smartlock.android.com.smartlock.android.util.TimeUtil;
+import com.smartlock.android.domain.LockInfo;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -98,8 +103,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private Date date;
 
-    List<String> DateList = new ArrayList<>();
-    List<List> TimeLists = new ArrayList<>();
+    List<String> TimeList = new ArrayList<>();
+    List<LockInfo> lockList = new ArrayList<>();
     List<OverlayOptions> options = new ArrayList<OverlayOptions>();
 
     String [] times = {"0:00","0:30","1:00","1:30","2:00","2:30","3:00","3:30","4:00","4:30","5:00","5:30",
@@ -130,7 +135,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startTimeBtn = findViewById(R.id.btn_changeStartTime);
         stopTimeBtn = findViewById(R.id.btn_changeStopTime);
         date = new Date(System.currentTimeMillis());
-        startTimeBtn.setText("今天 " + TimeUtil.getCurrentTime(date) + " (现在)");
+        startTimeBtn.setText(TimeUtil.getCurrentTime(date) + " (现在)");
         cardView = findViewById(R.id.cardview);
         lockInfo = findViewById(R.id.tv_lockinfo);
         drawerLayout = findViewById(R.id.drawerlayout);
@@ -281,8 +286,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return;
             } else {
                 String distance_string;
+                LockInfo lock = LockUtil.findLockWithlatitude(lockList,lockPoint.latitude,lockPoint.longitude);
+
+                //车锁序号
+                lockInfo.setText(lock.getId() + "号车位\n");
+
                 //详细地址
-                lockInfo.setText(reverseGeoCodeResult.getAddress() + "\n");
+                lockInfo.append(reverseGeoCodeResult.getAddress() + "\n");
 
                 //获取距离
                 double distance = DistanceUtil.getDistance(localPoint,lockPoint);
@@ -352,15 +362,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onOptionsSelect(int options1, int option2, int options3 ,View v) {
                         //返回的分别是三个级别的选中位置
-                        String tx = DateList.get(options1) + " "
-                                + TimeLists.get(options1).get(option2);
+                        String tx = TimeList.get(options1);
                         startTimeBtn.setText(tx);
                         stopTimeBtn.setText("预定时间");
                     }
                 })
                         .setDecorView((ViewGroup) getWindow().getDecorView().findViewById(android.R.id.content))
                         .build();
-                pvOptions_startTime.setPicker(DateList,TimeLists);
+                pvOptions_startTime.setPicker(TimeList);
                 pvOptions_startTime.show();
                 break;
             case R.id.btn_changeStopTime:
@@ -371,8 +380,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onOptionsSelect(int options1, int option2, int options3 ,View v) {
                         //返回的分别是三个级别的选中位置
-                        String tx = DateList.get(options1) + " "
-                                + TimeLists.get(options1).get(option2);
+                        String tx = TimeList.get(options1);
                         stopTimeBtn.setText(tx);
 
                         queryFromServerToLockAddress();
@@ -380,7 +388,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 })
                         .setDecorView((ViewGroup) getWindow().getDecorView().findViewById(android.R.id.content))
                         .build();
-                pvOptions_stopTime.setPicker(DateList,TimeLists);
+                pvOptions_stopTime.setPicker(TimeList);
                 pvOptions_stopTime.show();
                 break;
             case R.id.fab:
@@ -451,44 +459,47 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void setMarker(){
         //清除地图上的所有覆盖物
         mBaiduMap.clear();
+        //清除点数据
+        options.clear();
+
+        //构建Marker图标
+        BitmapDescriptor bitmap = BitmapDescriptorFactory.fromResource(R.mipmap.position);
+
+        for(LockInfo lock : lockList) {
+            //创建点
+            LatLng point = new LatLng(lock.getLatitude(), lock.getLongitude());
+            //构建MarkerOption，用于在地图上添加Marker
+            OverlayOptions option = new MarkerOptions()
+                    .position(point)
+                    .icon(bitmap)
+                    .animateType(MarkerOptions.MarkerAnimateType.grow);
+
+            //将OverlayOptions添加到list
+            options.add(option);
+        }
 
         //在地图上批量添加
         mBaiduMap.addOverlays(options);
     }
 
     private void initDataTimeList(boolean isStartTime) {
-        DateList.clear();
-        TimeLists.clear();
+        TimeList.clear();
         date = new Date(System.currentTimeMillis());
-
-        List<String> TodayTimeList = new ArrayList<>();
-        List<String> TomorrowTimeList = new ArrayList<>();
 
         int time_hour_string,time_min_string;
 
         if (isStartTime){
-            DateList.add("今天");DateList.add("明天");
-
-            if (isStartTime) {
-                TodayTimeList.add(TimeUtil.getCurrentTime(date) + " (现在)");
-            }
+            TimeList.add(TimeUtil.getCurrentTime(date) + " (现在)");
 
             time_hour_string = TimeUtil.getCurrentHour(date);
             time_min_string = TimeUtil.getCurrentMin(date);
         }else {
             startTime = startTimeBtn.getText().toString();
-            String date_string = startTime.split(" ")[0];
-            time_hour_string = Integer.parseInt(startTime.split(" ")[1].split(":")[0]);
-            time_min_string = Integer.parseInt(startTime.split(" ")[1].split(":")[1]);
-
-            if (date_string.equals("今天")){
-                DateList.add("今天");DateList.add("明天");
-            }else if (date_string.equals("明天")){
-                DateList.add("明天");DateList.add("后天");
-            }
+            time_hour_string = Integer.parseInt(startTime.split(":")[0]);//获取预订起始时间小时数
+            time_min_string = Integer.parseInt(startTime.split(":")[1].split(" ")[0]);//获取预订起始时间分钟数
         }
 
-        //添加第一段的时间表
+        //添加时间表
         int a = time_hour_string * 2;
         if (time_min_string >= 0 && time_min_string < 15){
             a = a + 1;
@@ -500,42 +511,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             a = a + 3;
         }
         for(int i = a ; i < 48 ; i++){
-            TodayTimeList.add(times[i]);
+            TimeList.add(times[i]);
         }
 
-        //添加第二段的时间表
-        for (int i = 0 ; i < a ; i++){
-            TomorrowTimeList.add(times[i]);
-        }
-
-        TimeLists.add(TodayTimeList);
-        TimeLists.add(TomorrowTimeList);
     }
 
     //给服务器发送地址请求，获取使用使用时间内的车锁信息
     private void queryFromServerToLockAddress() {
         showProgressDialog();
 
-        String first_date_string = startTimeBtn.getText().toString().split(" ")[0];
-        String first_time_string = startTimeBtn.getText().toString().split(" ")[1];
-        String second_date_string = stopTimeBtn.getText().toString().split(" ")[0];
-        String second_time_string = stopTimeBtn.getText().toString().split(" ")[1];
+        String first_time_string = startTimeBtn.getText().toString().split(" ")[0];
+        String second_time_string = stopTimeBtn.getText().toString();
 
-        if (first_date_string.equals("今天")){
-            first_date_string = "A:";
-        }else if (first_date_string.equals("明天")){
-            first_date_string = "B:";
-        }
-
-        if (second_date_string.equals("今天")){
-            second_date_string = "A:";
-        }else if (second_date_string.equals("明天")){
-            second_date_string = "B:";
-        }else if (second_date_string.equals("后天")){
-            second_date_string = "C:";
-        }
-
-        String address = ServerIP + "/JavaWorkspace_war/FindLockController/findLockByTime?startTime=" + first_date_string + first_time_string + ":00&stopTime=" + second_date_string + second_time_string + ":00";
+        String address = ServerIP + "/JavaWorkspace_war/FindLockController/findLockByTime?startTime=A:" +  first_time_string + ":00&stopTime=A:" +  second_time_string + ":00";
 
         HttpUtil.sendOkHttpRequest(address, new Callback() {
             @Override
@@ -554,7 +542,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             public void onResponse(Call call, Response response) throws IOException {
                 String responseText = response.body().string();
                 if (!TextUtils.isEmpty(responseText)){
-                    options = HttpUtil.parseJSONWithJSONObjectTolockAddress(responseText);
+                    lockList = HttpUtil.parseJSONWithJSONObjectTolockAddress(responseText);
                     setMarker();
                 }
                 closeProgressDialog();

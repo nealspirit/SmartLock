@@ -34,4 +34,6 @@ dependencies {
     implementation 'de.hdodenhof:circleimageview:2.1.0'
     implementation 'com.github.bumptech.glide:glide:3.7.0'
     implementation 'com.github.mcxtzhang:SwipeCaptcha:V1.0.0'
+    implementation 'com.zhy:base-rvadapter:3.0.3'
+    implementation 'com.alibaba:fastjson:1.2.8'
 }

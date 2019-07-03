@@ -76,7 +76,7 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, NavigationView.OnNavigationItemSelectedListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, NavigationView.OnNavigationItemSelectedListener, BaiduMap.OnMarkerClickListener {
     public LocationClient mLocationClient = null;
     private MyLocationListener myListener = new MyLocationListener();
     private MapView mMapView = null;
@@ -102,6 +102,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static DrivingRouteOverlay overlay;
 
     private Date date;
+    private LockInfo selectedLock;
 
     List<String> TimeList = new ArrayList<>();
     List<LockInfo> lockList = new ArrayList<>();
@@ -167,28 +168,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mBaiduMap.animateMapStatus(update);
 
         //设置地图标志点上的点击事件
-        mBaiduMap.setOnMarkerClickListener(new BaiduMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(Marker marker) {
-                lockPoint = marker.getPosition();
-
-                //获取地址
-                geoCoderSearch = GeoCoder.newInstance();
-                geoCoderSearch.setOnGetGeoCodeResultListener(geoCoderResultListener);
-                geoCoderSearch.reverseGeoCode(new ReverseGeoCodeOption().location(lockPoint).radius(500));
-
-                //规划线路
-                routePlanSearch = RoutePlanSearch.newInstance();
-                routePlanSearch.setOnGetRoutePlanResultListener(routePlanResultListener);
-                PlanNode stNode = PlanNode.withLocation(localPoint);
-                PlanNode enNode = PlanNode.withLocation(lockPoint);
-                routePlanSearch.drivingSearch(new DrivingRoutePlanOption().from(stNode).to(enNode));
-
-                showLockInfoWithAnim();
-
-                return true;
-            }
-        });
+        mBaiduMap.setOnMarkerClickListener(this);
 
         //申请权限
         List<String> permissionList = new ArrayList<>();
@@ -286,10 +266,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return;
             } else {
                 String distance_string;
-                LockInfo lock = LockUtil.findLockWithlatitude(lockList,lockPoint.latitude,lockPoint.longitude);
 
                 //车锁序号
-                lockInfo.setText(lock.getId() + "号车位\n");
+                lockInfo.setText(selectedLock.getId() + "号车位\n");
 
                 //详细地址
                 lockInfo.append(reverseGeoCodeResult.getAddress() + "\n");
@@ -453,6 +432,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         drawerLayout.closeDrawers();
+        return true;
+    }
+
+    //设置地图标志物点击事件
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        lockPoint = marker.getPosition();
+        selectedLock = LockUtil.findLockWithlatitude(lockList,lockPoint.latitude,lockPoint.longitude);
+
+        //获取地址
+        geoCoderSearch = GeoCoder.newInstance();
+        geoCoderSearch.setOnGetGeoCodeResultListener(geoCoderResultListener);
+        geoCoderSearch.reverseGeoCode(new ReverseGeoCodeOption().location(lockPoint).radius(500));
+
+        //规划线路
+        routePlanSearch = RoutePlanSearch.newInstance();
+        routePlanSearch.setOnGetRoutePlanResultListener(routePlanResultListener);
+        PlanNode stNode = PlanNode.withLocation(localPoint);
+        PlanNode enNode = PlanNode.withLocation(lockPoint);
+        routePlanSearch.drivingSearch(new DrivingRoutePlanOption().from(stNode).to(enNode));
+
+        showLockInfoWithAnim();
+
         return true;
     }
 

@@ -31,11 +31,12 @@ public class HttpUtil {
 
     public static List<LockInfo> parseJSONWithJSONObjectTolockAddress(String jsonData) {
         List<LockInfo> lockInfoList = new ArrayList<>();
-        LockInfo lock = new LockInfo();
 
         try{
             JSONArray jsonArray = new JSONArray(jsonData);
             for (int i = 0; i < jsonArray.length(); i++){
+                LockInfo lock = new LockInfo();
+
                 JSONObject jsonObject = jsonArray.getJSONObject(i);
                 String id = jsonObject.getString("id");
                 double longitude = Double.parseDouble(jsonObject.getString("longitude"));

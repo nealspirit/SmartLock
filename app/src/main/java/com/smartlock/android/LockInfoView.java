@@ -6,6 +6,7 @@ import android.support.annotation.Nullable;
 import android.support.v7.widget.CardView;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.TranslateAnimation;
 
@@ -29,7 +30,6 @@ public class LockInfoView extends CardView {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        TranslateAnimation translateAnimation;
         float Y = event.getY();
 
         switch (event.getAction()){
@@ -46,8 +46,23 @@ public class LockInfoView extends CardView {
             case MotionEvent.ACTION_UP:
                 if (CARDVIEW_MODE_FLAG){
                     Animation animation = AnimUtil.getAnimation(getContext(),AnimUtil.SLIDE_OUT_BOTTOM);
+                    animation.setAnimationListener(new Animation.AnimationListener() {
+                        @Override
+                        public void onAnimationStart(Animation animation) {
+
+                        }
+
+                        @Override
+                        public void onAnimationEnd(Animation animation) {
+                            setVisibility(View.GONE);
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animation animation) {
+
+                        }
+                    });
                     this.startAnimation(animation);
-                    this.setVisibility(GONE);
 
                     if (MainActivity.overlay != null) {
                         MainActivity.overlay.removeFromMap();

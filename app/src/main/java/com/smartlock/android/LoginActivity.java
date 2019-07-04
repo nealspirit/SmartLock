@@ -132,12 +132,16 @@ public class LoginActivity extends AppCompatActivity {
                 editor = pref.edit();
 
                 if (!TextUtils.isEmpty(responseText)){
+                    wrongMessage.setVisibility(View.GONE);
+
                     responseText = "[" + responseText + "]";
                     user = HttpUtil.parseJSONWithJSONObjectToUserInfo(responseText);
                     user.setPassword(password);
+
                     editor.putString("username",user.getUserName());
                     editor.putString("password",user.getPassword());
                     editor.apply();
+
                     closeProgressDialog();
                     finish();
                 }else {
@@ -179,8 +183,6 @@ public class LoginActivity extends AppCompatActivity {
         mSwipeCaptchaView.setOnCaptchaMatchCallback(new SwipeCaptchaView.OnCaptchaMatchCallback() {
             @Override
             public void matchSuccess(SwipeCaptchaView swipeCaptchaView) {
-                Toast.makeText(LoginActivity.this, "验证成功", Toast.LENGTH_SHORT).show();
-                //swipeCaptcha.createCaptcha();
                 mSeekBar.setEnabled(false);
                 checkDialog.dismiss();
                 queryFromServerToUserInfo(username,password);

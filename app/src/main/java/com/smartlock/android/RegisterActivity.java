@@ -195,30 +195,33 @@ public class RegisterActivity extends AppCompatActivity {
                 String responseText = response.body().string();
                 editor = pref.edit();
 
-                if (responseText.equals("true")){
-                    Toast.makeText(RegisterActivity.this,"注册成功",Toast.LENGTH_SHORT).show();
-                    wrongUsernameText.setVisibility(View.GONE);
+                if (!TextUtils.isEmpty(responseText)){
+                    if (responseText.equals("repeat")){
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                wrongUsernameText.setVisibility(View.VISIBLE);
+                                closeProgressDialog();
+                            }
+                        });
+                    }else {
+                        wrongUsernameText.setVisibility(View.GONE);
 
-                    //将用户数据存入缓存中
-                    editor.putString("username",registerUser.getUserName());
-                    editor.putString("password",registerUser.getPassword());
-                    editor.apply();
+                        //将用户数据存入缓存中
+                        editor.putString("userId",responseText);
+                        editor.putString("username",registerUser.getUserName());
+                        editor.putString("password",registerUser.getPassword());
+                        editor.apply();
 
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            closeProgressDialog();
-                            finish();
-                        }
-                    });
-                }else if (responseText.equals("repeat")){
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            wrongUsernameText.setVisibility(View.VISIBLE);
-                            closeProgressDialog();
-                        }
-                    });
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(RegisterActivity.this,"注册成功",Toast.LENGTH_SHORT).show();
+                                closeProgressDialog();
+                                finish();
+                            }
+                        });
+                    }
                 }else {
                     editor.clear();
                     editor.apply();

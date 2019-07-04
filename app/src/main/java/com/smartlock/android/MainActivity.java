@@ -116,8 +116,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String startTime = null;
 
     public static String ServerIP = "http://192.168.1.106:8080";//阿里云IP:http://47.101.35.145:8080
+    private String userId;
     private String username;
-    private String password;
 
     private SharedPreferences pref;
     private SharedPreferences.Editor editor;
@@ -423,8 +423,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 default:
                     break;
             }
-            Toast.makeText(MainActivity.this,"未完成的功能",Toast.LENGTH_SHORT).show();
-
             startActivity(intent);
         }else {
             Intent intent = new Intent(MainActivity.this,LoginActivity.class);
@@ -583,8 +581,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onStart() {
         super.onStart();
+
+        userId = pref.getString("userId","");
         username = pref.getString("username","");
-        password = pref.getString("password","");
         if (!TextUtils.isEmpty(username)){
             nav_header_username.setText(username);
         }else {

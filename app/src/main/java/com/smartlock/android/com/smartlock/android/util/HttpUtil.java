@@ -61,6 +61,7 @@ public class HttpUtil {
             JSONArray jsonArray = new JSONArray(jsonData);
             for (int i = 0; i < jsonArray.length(); i++){
                 JSONObject jsonObject = jsonArray.getJSONObject(i);
+                user.setUserId(jsonObject.getString("id"));
                 user.setUserName(jsonObject.getString("name"));
                 user.setPhoneNumber(jsonObject.getString("phone"));
                 user.setIdentity(jsonObject.getString("identity"));
@@ -71,5 +72,23 @@ public class HttpUtil {
         }
 
         return user;
+    }
+
+    public static LockInfo parseJSONWithJSONObjectToLcokInfo(String jsonData){
+        LockInfo lock = new LockInfo();
+
+        try{
+            JSONArray jsonArray = new JSONArray(jsonData);
+            for (int i = 0; i < jsonArray.length(); i++){
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                lock.setId(Integer.parseInt(jsonObject.getString("id")));
+                lock.setLongitude(Double.parseDouble(jsonObject.getString("longitude")));
+                lock.setLatitude(Double.parseDouble(jsonObject.getString("latitude")));
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return lock;
     }
 }

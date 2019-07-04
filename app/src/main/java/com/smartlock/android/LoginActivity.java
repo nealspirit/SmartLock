@@ -138,6 +138,7 @@ public class LoginActivity extends AppCompatActivity {
                     user = HttpUtil.parseJSONWithJSONObjectToUserInfo(responseText);
                     user.setPassword(password);
 
+                    editor.putString("userId",user.getUserId());
                     editor.putString("username",user.getUserName());
                     editor.putString("password",user.getPassword());
                     editor.apply();

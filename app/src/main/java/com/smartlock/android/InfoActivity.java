@@ -25,6 +25,8 @@ import com.smartlock.android.domain.LockInfo;
 import com.smartlock.android.domain.UserInfo;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -40,7 +42,7 @@ public class InfoActivity extends AppCompatActivity {
     private SharedPreferences.Editor editor;
 
     private UserInfo user;
-    private LockInfo lock;
+    private List<LockInfo> lockInfoList = new ArrayList<>();
 
     private GeoCoder geoCoderSearch;
 
@@ -168,15 +170,18 @@ public class InfoActivity extends AppCompatActivity {
                 String responseText = response.body().string();
 
                 if (!TextUtils.isEmpty(responseText)){
-                    lock = HttpUtil.parseJSONWithJSONObjectToLcokInfo(responseText);
+                    lockInfoList = HttpUtil.parseJSONWithJSONObjectTolockAddress(responseText);
 
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            closeProgressDialog();
-                            showInfo.setText(lock.getId() + "号车位" + "\n");
-                            showInfo.append("地址：" + "\n");
-                            getLockAddressToTextView();
+                            showInfo.setText("");
+                            for (LockInfo lock : lockInfoList) {
+                                closeProgressDialog();
+                                showInfo.append(lock.getId() + "号车位" + "\n");
+                                showInfo.append("地址：" + "\n");
+                                getLockAddressToTextView(lock);
+                            }
                         }
                     });
                 }else {
@@ -194,7 +199,7 @@ public class InfoActivity extends AppCompatActivity {
         });
     }
 
-    private void getLockAddressToTextView() {
+    private void getLockAddressToTextView(LockInfo lock) {
         LatLng lockPoint = new LatLng(lock.getLatitude(),lock.getLongitude());
 
         //获取地址
@@ -237,4 +242,12 @@ public class InfoActivity extends AppCompatActivity {
             }
         }
     };
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (geoCoderSearch != null){
+            geoCoderSearch.destroy();
+        }
+    }
 }

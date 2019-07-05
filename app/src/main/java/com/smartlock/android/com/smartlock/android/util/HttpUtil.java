@@ -1,13 +1,5 @@
 package com.smartlock.android.com.smartlock.android.util;
 
-import android.util.Log;
-
-import com.baidu.mapapi.map.BitmapDescriptor;
-import com.baidu.mapapi.map.BitmapDescriptorFactory;
-import com.baidu.mapapi.map.MarkerOptions;
-import com.baidu.mapapi.map.OverlayOptions;
-import com.baidu.mapapi.model.LatLng;
-import com.smartlock.android.R;
 import com.smartlock.android.domain.LockInfo;
 import com.smartlock.android.domain.UserInfo;
 
@@ -16,7 +8,6 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.locks.Lock;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -72,23 +63,5 @@ public class HttpUtil {
         }
 
         return user;
-    }
-
-    public static LockInfo parseJSONWithJSONObjectToLcokInfo(String jsonData){
-        LockInfo lock = new LockInfo();
-
-        try{
-            JSONArray jsonArray = new JSONArray(jsonData);
-            for (int i = 0; i < jsonArray.length(); i++){
-                JSONObject jsonObject = jsonArray.getJSONObject(i);
-                lock.setId(Integer.parseInt(jsonObject.getString("id")));
-                lock.setLongitude(Double.parseDouble(jsonObject.getString("longitude")));
-                lock.setLatitude(Double.parseDouble(jsonObject.getString("latitude")));
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-
-        return lock;
     }
 }

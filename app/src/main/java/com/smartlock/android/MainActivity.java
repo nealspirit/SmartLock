@@ -16,6 +16,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.CardView;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
@@ -93,6 +94,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
     private TextView nav_header_username;
+    private TextView bookBtn;
 
     private boolean isFisrtLocate = true;
 
@@ -142,6 +144,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         drawerLayout = findViewById(R.id.drawerlayout);
         navigationView = findViewById(R.id.user_info);
         nav_header_username = navigationView.getHeaderView(0).findViewById(R.id.username);
+        bookBtn = findViewById(R.id.btn_book);
+
+        //初始化缓存Preference
         pref = PreferenceManager.getDefaultSharedPreferences(this);
         editor = pref.edit();
 
@@ -384,7 +389,33 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Toast.makeText(MainActivity.this,"开灯",Toast.LENGTH_SHORT).show();
                 break;
             case R.id.btn_book:
-                Toast.makeText(MainActivity.this,"预订",Toast.LENGTH_SHORT).show();
+                if (!TextUtils.isEmpty(username)){
+                    switch (bookBtn.getText().toString()){
+                        case "预订":
+                            queryFromServerToBookLock();
+                            break;
+                        case "开锁":
+                            Toast.makeText(MainActivity.this,"已开锁",Toast.LENGTH_SHORT).show();
+                            bookBtn.setText("关锁还车位");
+                            break;
+                        case "关锁还车位":
+                            Toast.makeText(MainActivity.this,"已还车位",Toast.LENGTH_SHORT).show();
+                            bookBtn.setText("预订");
+
+                            dismissLockInfoWithAnim();
+
+                            //清除地图上的所有覆盖物
+                            mBaiduMap.clear();
+
+                            //清空startTime和stopTime数据
+                            startTimeBtn.setText(TimeUtil.getCurrentTime(date) + " (现在)");
+                            stopTimeBtn.setText("预定时间");
+                            break;
+                    }
+                }else {
+                    Intent intent = new Intent(MainActivity.this,LoginActivity.class);
+                    startActivity(intent);
+                }
                 break;
             case R.id.nav_button:
                 drawerLayout.openDrawer(GravityCompat.START);
@@ -456,6 +487,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return true;
     }
 
+    //设置地图上的标记
     private void setMarker(){
         //清除地图上的所有覆盖物
         mBaiduMap.clear();
@@ -550,9 +582,87 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         });
     }
 
+    //给服务器发送请求，预订车位锁
+    private void queryFromServerToBookLock() {
+        String address = ServerIP + "/JavaWorkspace_war/LockController/bookLock?lockId=" + selectedLock.getId() + "&startTime=" + startTimeBtn.getText().toString().split(" ")[0] + ":00&stopTime=" + stopTimeBtn.getText().toString() + ":00&userId=" + userId;
+        showProgressDialog();
+
+        HttpUtil.sendOkHttpRequest(address, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        closeProgressDialog();
+                        stopTimeBtn.setText("预定时间");
+                        Toast.makeText(MainActivity.this,"加载失败，请检查网络后重试",Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseText = response.body().string();
+                if (!TextUtils.isEmpty(responseText)){
+                    if (responseText.equals("true")){
+                        lockList.clear();
+                        lockList.add(selectedLock);
+                        setMarker();
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(MainActivity.this,"车锁预订成功",Toast.LENGTH_SHORT).show();
+                                bookBtn.setText("开锁");
+                            }
+                        });
+                    }else if (responseText.equals("false")){
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(MainActivity.this,"车锁已被预订",Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }else {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(MainActivity.this,"服务器连接异常，请重试",Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                }else {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(MainActivity.this,"服务器异常，请重试",Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+                closeProgressDialog();
+            }
+        });
+    }
+
     private void showLockInfoWithAnim() {
         cardView.setVisibility(View.VISIBLE);
         Animation animation = AnimUtil.getAnimation(this,AnimUtil.SLIDE_IN_BOTTOM);
+        cardView.startAnimation(animation);
+    }
+
+    private void dismissLockInfoWithAnim(){
+        Animation animation = AnimUtil.getAnimation(this,AnimUtil.SLIDE_OUT_BOTTOM);
+        animation.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {}
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                cardView.setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {}
+        });
         cardView.startAnimation(animation);
     }
 
